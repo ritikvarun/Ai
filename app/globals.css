@@ -1,0 +1,150 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
+  }
+}
+
+:root {
+  --background: hsl(45 25% 97.5%);
+  --foreground: hsl(30 8% 16%);
+  --card: hsl(0 0% 100%);
+  --card-foreground: hsl(30 8% 16%);
+  --popover: hsl(0 0% 100%);
+  --popover-foreground: hsl(30 8% 16%);
+  --primary: hsl(30 8% 16%);
+  --primary-foreground: hsl(45 25% 97.5%);
+  --secondary: hsl(38 22% 91.5%);
+  --secondary-foreground: hsl(30 8% 16%);
+  --muted: hsl(38 12% 93%);
+  --muted-foreground: hsl(36 7% 41.5%);
+  --accent: hsl(38 22% 91.5%);
+  --accent-foreground: hsl(30 8% 16%);
+  --destructive: hsl(0 84% 60%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(45 18% 84%);
+  --input: hsl(45 18% 84%);
+  --ring: hsl(30 8% 16%);
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: hsl(30 6% 8%);
+  --foreground: hsl(45 15% 91%);
+  --card: hsl(30 6% 12%);
+  --card-foreground: hsl(45 15% 91%);
+  --popover: hsl(30 6% 12%);
+  --popover-foreground: hsl(45 15% 91%);
+  --primary: hsl(45 15% 91%);
+  --primary-foreground: hsl(30 6% 8%);
+  --secondary: hsl(30 6% 14%);
+  --secondary-foreground: hsl(45 15% 91%);
+  --muted: hsl(30 6% 16%);
+  --muted-foreground: hsl(36 7% 60%);
+  --accent: hsl(30 6% 14%);
+  --accent-foreground: hsl(45 15% 91%);
+  --destructive: hsl(0 75% 45%);
+  --destructive-foreground: hsl(0 0% 98%);
+  --border: hsl(30 6% 18%);
+  --input: hsl(30 6% 18%);
+  --ring: hsl(45 15% 91%);
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom Cozy Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
+
+/* Smooth transitions */
+.cozy-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cozy Card Shadows */
+.cozy-shadow {
+  box-shadow: 0 4px 20px -2px rgba(107, 102, 95, 0.08);
+}
+
+.dark .cozy-shadow {
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.3);
+}
+
+/* Whiteboard Canvas Grid pattern */
+.canvas-grid {
+  background-size: 24px 24px;
+  background-image: 
+    radial-gradient(circle, var(--border) 1px, transparent 1px);
+}
+
