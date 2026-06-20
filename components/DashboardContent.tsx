@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import CalendarPage from './CalendarPage';
 import KanbanPage from './KanbanPage';
+import NotesPage from './NotesPage';
 import { 
   Sparkles, 
   Calendar as CalIcon, 
@@ -420,127 +421,11 @@ export default function DashboardContent({ activePage }: ContentProps) {
       case 'calendar':
         return <CalendarPage />;
 
+      case 'notes':
+        return <NotesPage />;
+
       case 'tasks':
         return <KanbanPage />;
-
-      case 'notes': {
-        const activeNote = notes.find(n => n.id === selectedNoteId);
-
-        const handleNoteTitleChange = (newTitle: string) => {
-          const updated = notes.map(n => n.id === selectedNoteId ? { ...n, title: newTitle, updatedAt: Date.now() } : n);
-          setNotes(updated);
-          localStorage.setItem('auraflow_notes', JSON.stringify(updated));
-        };
-
-        const handleNoteContentChange = (newContent: string) => {
-          const updated = notes.map(n => n.id === selectedNoteId ? { ...n, content: newContent, updatedAt: Date.now() } : n);
-          setNotes(updated);
-          localStorage.setItem('auraflow_notes', JSON.stringify(updated));
-        };
-
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in duration-300 h-[calc(100vh-120px)] text-foreground">
-            {/* Notes sidebar */}
-            <div className="md:col-span-1 bg-secondary/15 p-3 rounded-xl border border-border/50 space-y-4 flex flex-col h-full select-none">
-              <div className="flex justify-between items-center flex-shrink-0">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">My Notebook</span>
-                <button 
-                  onClick={handleAddNote}
-                  className="p-1 rounded bg-card border border-border hover:bg-secondary cursor-pointer text-muted-foreground hover:text-foreground cozy-transition"
-                  title="Add Note"
-                >
-                  <Plus size={12} />
-                </button>
-              </div>
-
-              <div className="space-y-1 overflow-y-auto flex-1 pr-1 scrollbar-thin">
-                {notes.map((noteItem) => {
-                  const isActive = noteItem.id === selectedNoteId;
-                  return (
-                    <div 
-                      key={noteItem.id}
-                      onClick={() => setSelectedNoteId(noteItem.id)}
-                      className={`w-full group flex items-center justify-between px-2.5 py-2 rounded-lg text-xs font-semibold cozy-transition cursor-pointer border ${
-                        isActive 
-                          ? 'bg-card text-foreground border-border/50 shadow-sm font-bold' 
-                          : 'text-muted-foreground hover:bg-card/40 hover:text-foreground border-transparent'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 overflow-hidden">
-                        <FileText size={12} className="text-teal-500 flex-shrink-0" />
-                        <span className="truncate">{noteItem.title || 'Untitled Note'}</span>
-                      </div>
-                      
-                      <button
-                        onClick={(e) => handleDeleteNote(noteItem.id, e)}
-                        className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-secondary hover:text-red-500 cozy-transition cursor-pointer"
-                        title="Delete Note"
-                      >
-                        <Trash size={12} />
-                      </button>
-                    </div>
-                  );
-                })}
-
-                {notes.length === 0 && (
-                  <div className="text-center py-6 text-muted-foreground text-[10px]">
-                    No notes in notebook
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Note Editor area */}
-            <div className="md:col-span-3 bg-card p-6 rounded-xl border border-border/70 cozy-shadow flex flex-col h-full overflow-hidden">
-              {activeNote ? (
-                <div className="flex flex-col h-full space-y-4">
-                  <div className="flex justify-between items-center border-b border-border/60 pb-3 flex-shrink-0">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <FolderOpen size={13} />
-                      <span>spaces</span>
-                      <span>/</span>
-                      <span className="font-semibold text-foreground truncate max-w-[200px]">
-                        {activeNote.title || 'Untitled Note'}
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="p-1.5 rounded border border-border text-muted-foreground hover:bg-secondary cursor-pointer" title="Share"><Share2 size={13} /></button>
-                      <button className="p-1.5 rounded border border-border text-muted-foreground hover:bg-secondary cursor-pointer" title="Bookmark"><Bookmark size={13} /></button>
-                    </div>
-                  </div>
-
-                  {/* Borderless Title Input */}
-                  <input 
-                    type="text"
-                    value={activeNote.title}
-                    onChange={(e) => handleNoteTitleChange(e.target.value)}
-                    placeholder="Note Title"
-                    className="w-full text-2xl font-bold tracking-tight text-foreground bg-transparent border-0 focus:outline-none focus:ring-0 p-0"
-                  />
-
-                  {/* Borderless Content Textarea */}
-                  <textarea 
-                    value={activeNote.content}
-                    onChange={(e) => handleNoteContentChange(e.target.value)}
-                    placeholder="Write some cozy thoughts here in markdown..."
-                    className="w-full flex-1 bg-transparent border-0 focus:outline-none focus:ring-0 text-xs leading-relaxed text-foreground/90 resize-none font-sans p-0 scrollbar-thin"
-                  />
-
-                  {/* Last updated footer info */}
-                  <div className="text-[9px] text-muted-foreground border-t border-border/40 pt-2 flex-shrink-0">
-                    Last updated: {new Date(activeNote.updatedAt).toLocaleString()}
-                  </div>
-                </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center text-center">
-                  <span className="text-3xl">🏜️</span>
-                  <p className="text-xs text-muted-foreground mt-2">Select a note or create one to begin writing.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      }
 
       case 'whiteboard':
         return (
