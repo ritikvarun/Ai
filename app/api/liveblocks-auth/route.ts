@@ -1,5 +1,5 @@
 import { Liveblocks } from "@liveblocks/node";
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/current-user";
 import { NextResponse } from "next/server";
 
 // Initialize Liveblocks Node SDK
@@ -10,8 +10,8 @@ const liveblocks = liveblocksSecretKey && liveblocksSecretKey !== "sk_test_place
 
 export async function POST(request: Request) {
   try {
-    // 1. Get authenticated user from Clerk
-    const user = await currentUser();
+    // 1. Get authenticated user
+    const user = await getCurrentUser();
     if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }

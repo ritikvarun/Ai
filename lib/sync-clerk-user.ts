@@ -1,14 +1,14 @@
 import "server-only";
 
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUser } from "./current-user";
 import { eq, or } from "drizzle-orm";
 
 import { db, users } from "@/db";
 
-type ClerkUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
+type ClerkUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 export async function syncClerkUserToDatabase(clerkUser?: ClerkUser | null) {
-  clerkUser ??= await currentUser();
+  clerkUser ??= await getCurrentUser();
 
   if (!clerkUser) {
     return null;

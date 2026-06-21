@@ -11,7 +11,7 @@ import {
   useCreateThread, 
   useCreateComment 
 } from '@liveblocks/react';
-import { useUser } from '@clerk/nextjs';
+import { useAppUser } from './auth-context';
 
 // Define the shape of our collaboration hooks context
 interface RealtimeContextProps {
@@ -47,7 +47,7 @@ const MOCK_USERS = [
 ];
 
 function MockRealtimeProvider({ children, roomId }: { children: React.ReactNode, roomId: string }) {
-  const { user } = useUser();
+  const { user } = useAppUser();
   const [myPresence, setMyPresence] = useState<any>({ activeTaskId: null, isTyping: false, cursor: null });
   const [others, setOthers] = useState<any[]>([]);
   const [threads, setThreads] = useState<any[]>([]);

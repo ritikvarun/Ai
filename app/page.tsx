@@ -49,7 +49,7 @@ export default function Home() {
           />
 
           {/* Dynamic Interactive Page Content */}
-          <DashboardContent activePage={activePage} />
+          <DashboardContent activePage={activePage} isDark={isDark} />
         </div>
       </div>
     </div>

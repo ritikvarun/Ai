@@ -1,9 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import CalendarPage from './CalendarPage';
 import KanbanPage from './KanbanPage';
 import NotesPage from './NotesPage';
+import PagesSpacesPage from './PagesSpacesPage';
+
+const WhiteboardPage = dynamic(
+  () => import('./WhiteboardPage'),
+  { ssr: false }
+);
 import { 
   Sparkles, 
   Calendar as CalIcon, 
@@ -30,9 +37,10 @@ import {
 
 interface ContentProps {
   activePage: string;
+  isDark: boolean;
 }
 
-export default function DashboardContent({ activePage }: ContentProps) {
+export default function DashboardContent({ activePage, isDark }: ContentProps) {
   // State for AI Chat
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState([
@@ -428,115 +436,10 @@ export default function DashboardContent({ activePage }: ContentProps) {
         return <KanbanPage />;
 
       case 'whiteboard':
-        return (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Whiteboard Header */}
-            <div className="flex items-center justify-between bg-card p-3 rounded-xl border border-border/70 cozy-shadow">
-              <div>
-                <h1 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
-                  <Presentation size={15} className="text-cyan-400" /> Miro Infinite Canvas
-                </h1>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Click "Add Sticky Card" to drop interactive notes onto the canvas.</p>
-              </div>
-
-              {/* Add sticky box */}
-              <div className="flex gap-1.5">
-                <input 
-                  type="text" 
-                  value={newStickyText}
-                  onChange={(e) => setNewStickyText(e.target.value)}
-                  placeholder="Sticky note ideas..."
-                  className="px-2.5 py-1 text-[11px] rounded-lg border border-border bg-secondary/15 focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-                />
-                <button 
-                  onClick={addSticky}
-                  className="px-3 py-1 bg-cyan-500 hover:bg-cyan-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cozy-transition cursor-pointer"
-                >
-                  <Plus size={12} /> Add Card
-                </button>
-              </div>
-            </div>
-
-            {/* Miro Styled Infinite Grid Viewport */}
-            <div className="relative w-full h-[400px] border border-border/80 rounded-2xl canvas-grid bg-card/65 overflow-hidden group cozy-shadow">
-              
-              {/* Canvas controls floating */}
-              <div className="absolute left-3 top-3 bg-card border border-border/80 p-1.5 rounded-lg flex flex-col gap-1.5 shadow-md z-10">
-                <button className="p-1 rounded hover:bg-secondary text-primary cursor-pointer" title="Cursor Select"><MousePointer size={14} /></button>
-                <button className="p-1 rounded hover:bg-secondary text-muted-foreground cursor-pointer" title="Add Shape"><Square size={14} /></button>
-                <button className="p-1 rounded hover:bg-secondary text-muted-foreground cursor-pointer" title="Add Memo"><StickyNote size={14} /></button>
-              </div>
-
-              {/* Rendering interactive stickies */}
-              {stickies.map((sticky) => (
-                <div 
-                  key={sticky.id}
-                  className="absolute p-4 w-40 min-h-[100px] rounded-lg shadow-md border border-black/10 text-xs text-zinc-800 font-semibold cursor-grab active:cursor-grabbing hover:-translate-y-1 transition-all duration-200 animate-in zoom-in-75 duration-300"
-                  style={{
-                    backgroundColor: sticky.color,
-                    left: `${sticky.x}px`,
-                    top: `${sticky.y}px`,
-                    transform: 'rotate(-1.5deg)'
-                  }}
-                >
-                  <div className="flex justify-between items-start mb-1 text-[9px] text-zinc-600 font-mono">
-                    <span>Note ID: {sticky.id}</span>
-                    <button 
-                      onClick={() => setStickies(prev => prev.filter(s => s.id !== sticky.id))}
-                      className="hover:text-red-600 text-[10px] cursor-pointer"
-                      title="Delete sticky"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <p className="leading-snug">{sticky.text}</p>
-                </div>
-              ))}
-
-              {stickies.length === 0 && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
-                  <div className="text-3xl">🏜️</div>
-                  <span className="text-xs text-muted-foreground mt-2">Canvas is empty. Create some sticky notes!</span>
-                </div>
-              )}
-
-              {/* Watermark brand overlay */}
-              <div className="absolute bottom-3 right-3 text-[10px] text-muted-foreground/60 font-medium">
-                Miro Mode • Click canvas elements
-              </div>
-            </div>
-          </div>
-        );
+        return <WhiteboardPage isDark={isDark} />;
 
       case 'pages':
-        return (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Spaces & Documents</h1>
-              <p className="text-xs text-muted-foreground mt-0.5">Manage Notion-like hierarchy pages and linked layouts</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[
-                { name: '🏁 Getting Started Checklist', linked: 'Tasks', desc: 'Step-by-step launch items sync-linked with our Kanban.', icon: '🏁', color: 'border-l-4 border-l-emerald-400' },
-                { name: '🧩 Feature Mock Layouts', linked: 'Whiteboard', desc: 'Design concepts for cozy interfaces stored on Miro boards.', icon: '🧩', color: 'border-l-4 border-l-cyan-400' },
-                { name: '📬 Newsletter Copy Plan', linked: 'Notes', desc: 'Interactive copy drafts and rich text widgets.', icon: '📬', color: 'border-l-4 border-l-amber-400' },
-                { name: '🛠️ DB Schema Models', linked: 'Drizzle', desc: 'SQL push structures in Neon Database integrations.', icon: '🛠️', color: 'border-l-4 border-l-indigo-400' }
-              ].map((sp, spIdx) => (
-                <div key={spIdx} className={`bg-card p-4 rounded-xl border border-border/70 cozy-shadow flex gap-4 ${sp.color}`}>
-                  <div className="text-2xl flex items-center justify-center">{sp.icon}</div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-xs text-foreground">{sp.name}</h3>
-                    <p className="text-[10px] text-muted-foreground mt-1">{sp.desc}</p>
-                    <span className="inline-block mt-3 text-[9px] px-1.5 py-0.5 bg-secondary text-muted-foreground rounded font-semibold font-mono">
-                      Linked: {sp.linked}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
+        return <PagesSpacesPage />;
 
       case 'template-builder':
         return (
@@ -627,7 +530,11 @@ export default function DashboardContent({ activePage }: ContentProps) {
   };
 
   return (
-    <div className="flex-1 overflow-y-auto h-screen p-6 md:p-8 bg-background cozy-transition">
+    <div className={`flex-1 cozy-transition bg-background ${
+      activePage === 'whiteboard'
+        ? 'h-[calc(100vh-4rem)] overflow-hidden flex flex-col'
+        : 'overflow-y-auto h-screen p-6 md:p-8'
+    }`}>
       {renderView()}
     </div>
   );

@@ -1,4 +1,5 @@
 import { ClerkProvider } from '@clerk/nextjs';
+import { AuthProvider } from '@/lib/auth-context';
 import "./globals.css";
 import type { Metadata } from "next";
 
@@ -12,13 +13,25 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const disableClerk = process.env.NEXT_PUBLIC_DISABLE_CLERK === "true";
+
+  const content = (
+    <html lang="en">
+      <body style={{ margin: 0, padding: 0 }}>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+
+  if (disableClerk) {
+    return content;
+  }
+
   return (
     <ClerkProvider>
-      <html lang="en">
-        <body style={{ margin: 0, padding: 0 }}>
-          {children}
-        </body>
-      </html>
+      {content}
     </ClerkProvider>
   );
 }

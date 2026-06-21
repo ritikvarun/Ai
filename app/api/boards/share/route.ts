@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { currentUser } from "@clerk/nextjs/server";
+import { getCurrentUser } from "@/lib/current-user";
 import { eq, and } from "drizzle-orm";
 import { db, boardShares } from "@/db";
 
 export async function GET(request: Request) {
   try {
-    const user = await currentUser();
+    const user = await getCurrentUser();
     if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await currentUser();
+    const user = await getCurrentUser();
     if (!user) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
