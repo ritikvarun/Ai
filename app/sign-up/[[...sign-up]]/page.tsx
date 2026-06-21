@@ -187,16 +187,12 @@ export default function SignUpPage() {
               variables: {
                 colorPrimary: 'hsl(38,72%,58%)',
                 colorBackground: 'hsl(30,6%,13%)',
-                colorInputBackground: 'hsl(30,6%,16%)',
-                colorInputText: 'hsl(45,15%,92%)',
-                colorText: 'hsl(45,15%,92%)',
-                colorTextSecondary: 'hsl(36,7%,58%)',
                 colorNeutral: 'hsl(30,6%,58%)',
                 borderRadius: '12px',
                 fontFamily: "'Inter', system-ui, sans-serif",
                 fontSize: '15px',
               },
-              layout: {
+              options: {
                 socialButtonsPlacement: 'top',
                 socialButtonsVariant: 'blockButton',
               },
