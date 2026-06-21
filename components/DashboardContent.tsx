@@ -2343,7 +2343,7 @@ export default function DashboardContent({
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="text-left">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
-                  Welcome back, Sarah 👋
+                  Welcome back, {user?.firstName || 'User'} 👋
                 </h1>
                 <p className="text-xs text-muted-foreground mt-1">Here is a live summary of your cozy workspace dashboard.</p>
               </div>
@@ -3262,7 +3262,21 @@ export default function DashboardContent({
           </div>
         );
 
-      case 'settings':
+      case 'settings': {
+        const displayName = user?.fullName || user?.firstName || user?.username || 'User';
+        const displayEmail = user?.emailAddresses?.[0]?.emailAddress || 'no-email@auraflow.io';
+        const userInitials = (() => {
+          if (user?.firstName && user?.lastName) {
+            return `${user.firstName[0]}${user.lastName[0]}`.toUpperCase();
+          }
+          if (user?.fullName) {
+            const parts = user.fullName.split(' ');
+            if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+            return parts[0][0].toUpperCase();
+          }
+          return 'U';
+        })();
+
         return (
           <div className="space-y-6 animate-in fade-in duration-300">
             <div>
@@ -3271,15 +3285,23 @@ export default function DashboardContent({
             </div>
 
             <div className="bg-card p-6 rounded-xl border border-border/70 cozy-shadow max-w-xl space-y-5">
-              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sarah's Profile</h2>
+              <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{user?.firstName || 'User'}'s Profile</h2>
               
               <div className="flex items-center gap-4 border-b border-border/40 pb-4">
-                <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-zinc-800 flex items-center justify-center border text-lg text-foreground font-semibold">
-                  SJ
-                </div>
+                {user?.imageUrl ? (
+                  <img 
+                    src={user.imageUrl} 
+                    alt={displayName} 
+                    className="w-12 h-12 rounded-full border border-border object-cover" 
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-zinc-800 flex items-center justify-center border text-lg text-foreground font-semibold">
+                    {userInitials}
+                  </div>
+                )}
                 <div>
-                  <h3 className="text-xs font-bold text-foreground">Sarah Jenkins</h3>
-                  <p className="text-[10px] text-muted-foreground">sarah@auraflow.io • Member since June 2026</p>
+                  <h3 className="text-xs font-bold text-foreground">{displayName}</h3>
+                  <p className="text-[10px] text-muted-foreground">{displayEmail} • Member since June 2026</p>
                 </div>
               </div>
 
@@ -3305,6 +3327,7 @@ export default function DashboardContent({
             </div>
           </div>
         );
+      }
 
       default:
         return (
