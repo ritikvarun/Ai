@@ -15,8 +15,38 @@ import {
   ChevronRight, 
   Moon, 
   Sun,
-  User
+  User,
+  X,
+  Flame,
+  Wallet,
+  DollarSign,
+  Utensils,
+  BookOpen,
+  Activity,
+  Compass,
+  CheckSquare,
+  Trophy,
+  Shield,
+  Layers,
+  ListTodo
 } from 'lucide-react';
+import { useAppUser } from '@/lib/auth-context';
+
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Flame,
+  Wallet,
+  DollarSign,
+  Utensils,
+  BookOpen,
+  Activity,
+  Compass,
+  CheckSquare,
+  Sparkles,
+  Trophy,
+  Shield,
+  Layers,
+  ListTodo
+};
 
 // Define the menu item structure
 export interface MenuItem {
@@ -26,6 +56,8 @@ export interface MenuItem {
   color: { light: string; dark: string };
   badge?: string;
   badgeColor?: string;
+  isCustom?: boolean;
+  appId?: string;
 }
 
 export interface MenuGroup {
@@ -38,10 +70,36 @@ interface SidebarProps {
   setActivePage: (id: string) => void;
   isDark: boolean;
   setIsDark: (val: boolean) => void;
+  sidebarApps?: any[];
+  createdApps?: any[];
+  setCreatedApps?: (apps: any[]) => void;
 }
 
-export default function Sidebar({ activePage, setActivePage, isDark, setIsDark }: SidebarProps) {
+export default function Sidebar({ 
+  activePage, 
+  setActivePage, 
+  isDark, 
+  setIsDark,
+  sidebarApps = [],
+  createdApps = [],
+  setCreatedApps
+}: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { user } = useAppUser();
+  const userId = user?.id || 'guest';
+
+  const handleRemoveFromSidebar = (appId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!setCreatedApps) return;
+    const updated = createdApps.map(app => {
+      if (app.id === appId) {
+        return { ...app, pinned: false };
+      }
+      return app;
+    });
+    setCreatedApps(updated);
+    localStorage.setItem(`auraflow_created_apps_${userId}`, JSON.stringify(updated));
+  };
 
   // Grouped Menu Options
   const groups: MenuGroup[] = [
@@ -118,9 +176,31 @@ export default function Sidebar({ activePage, setActivePage, isDark, setIsDark }
     }
   ];
 
+  // Inject user generated custom apps
+  const allGroups = [...groups];
+  if (sidebarApps && sidebarApps.length > 0) {
+    const customItems = sidebarApps.map(app => {
+      const IconComponent = iconMap[app.icon] || Sparkles;
+      return {
+        id: `app_${app.id}`,
+        name: app.appName,
+        icon: IconComponent,
+        color: { light: app.color, dark: app.color },
+        isCustom: true,
+        appId: app.id
+      };
+    });
+    
+    // Insert "My Apps" right after "Workspace" group
+    allGroups.splice(1, 0, {
+      label: 'My Apps',
+      items: customItems as any[]
+    });
+  }
+
   return (
     <aside 
-      className={`relative h-screen bg-secondary/35 border-r border-border cozy-transition flex flex-col select-none ${
+      className={`relative h-screen max-h-screen overflow-hidden bg-secondary/35 border-r border-border cozy-transition flex flex-col select-none ${
         isCollapsed ? 'w-[72px]' : 'w-[250px]'
       }`}
       style={{
@@ -159,8 +239,8 @@ export default function Sidebar({ activePage, setActivePage, isDark, setIsDark }
       </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 py-4 overflow-y-auto overflow-x-hidden px-3 space-y-5">
-        {groups.map((group, groupIdx) => (
+      <div className="flex-1 py-4 overflow-y-auto overflow-x-hidden px-3 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {allGroups.map((group, groupIdx) => (
           <div key={groupIdx} className="space-y-1.5">
             {/* Group Label */}
             {!isCollapsed ? (
@@ -213,6 +293,17 @@ export default function Sidebar({ activePage, setActivePage, isDark, setIsDark }
                     {!isCollapsed && (
                       <span className="flex-1 text-left whitespace-nowrap overflow-hidden text-ellipsis cozy-transition">
                         {item.name}
+                      </span>
+                    )}
+
+                    {/* Remove button for custom apps */}
+                    {!isCollapsed && item.isCustom && (
+                      <span
+                        onClick={(e) => handleRemoveFromSidebar(item.appId || '', e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground cozy-transition cursor-pointer"
+                        title="Remove from sidebar"
+                      >
+                        <X size={12} />
                       </span>
                     )}
 

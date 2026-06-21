@@ -4,10 +4,33 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import Navbar from '../components/Navbar';
 import DashboardContent from '../components/DashboardContent';
+import { useAppUser } from '@/lib/auth-context';
 
 export default function Home() {
   const [activePage, setActivePage] = useState('dashboard');
   const [isDark, setIsDark] = useState(false);
+  const [createdApps, setCreatedApps] = useState<any[]>([]);
+  const { user } = useAppUser();
+
+  // Load apps when user changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const userId = user?.id || 'guest';
+      const saved = localStorage.getItem(`auraflow_created_apps_${userId}`);
+      if (saved) {
+        try {
+          setCreatedApps(JSON.parse(saved));
+        } catch (e) {
+          setCreatedApps([]);
+        }
+      } else {
+        setCreatedApps([]);
+      }
+    }
+  }, [user]);
+
+  // Derived pinned apps for the sidebar
+  const sidebarApps = createdApps.filter((app) => app.pinned);
 
   // Check system dark mode preferences on initial load
   useEffect(() => {
@@ -37,6 +60,9 @@ export default function Home() {
           setActivePage={setActivePage} 
           isDark={isDark} 
           setIsDark={setIsDark} 
+          sidebarApps={sidebarApps}
+          createdApps={createdApps}
+          setCreatedApps={setCreatedApps}
         />
 
         {/* Right-hand Workspace Pane */}
@@ -49,7 +75,13 @@ export default function Home() {
           />
 
           {/* Dynamic Interactive Page Content */}
-          <DashboardContent activePage={activePage} isDark={isDark} />
+          <DashboardContent 
+            activePage={activePage} 
+            setActivePage={setActivePage}
+            isDark={isDark} 
+            createdApps={createdApps}
+            setCreatedApps={setCreatedApps}
+          />
         </div>
       </div>
     </div>
