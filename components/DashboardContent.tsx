@@ -96,12 +96,253 @@ export default function DashboardContent({
   const { user } = useAppUser();
   const userId = user?.id || 'guest';
 
+  // Real App Data states
+  const [realCalendarTasks, setRealCalendarTasks] = useState<any[]>([]);
+  const [realKanbanBoards, setRealKanbanBoards] = useState<any[]>([]);
+  const [realNotes, setRealNotes] = useState<any[]>([]);
+  const [realWhiteboards, setRealWhiteboards] = useState<any[]>([]);
+  const [realChatHistory, setRealChatHistory] = useState<any[]>([]);
+  const [realTemplates, setRealTemplates] = useState<any[]>([]);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
+
+  // Quick Actions modal states
+  const [activeModal, setActiveModal] = useState<'task' | 'reminder' | 'note' | null>(null);
+  
+  // Create Task Form State
+  const [quickTaskTitle, setQuickTaskTitle] = useState('');
+  const [quickTaskDesc, setQuickTaskDesc] = useState('');
+  const [quickTaskBoardId, setQuickTaskBoardId] = useState('');
+  const [quickTaskPriority, setQuickTaskPriority] = useState<'Low' | 'Medium' | 'High'>('Medium');
+  
+  // Create Calendar Reminder Form State
+  const [quickReminderTitle, setQuickReminderTitle] = useState('');
+  const [quickReminderDesc, setQuickReminderDesc] = useState('');
+  const [quickReminderDate, setQuickReminderDate] = useState('2026-06-21');
+  const [quickReminderTime, setQuickReminderTime] = useState('');
+  const [quickReminderCategory, setQuickReminderCategory] = useState<'Work' | 'Personal' | 'Meeting' | 'Health' | 'Urgent'>('Work');
+  const [quickReminderType, setQuickReminderType] = useState<'task' | 'reminder'>('reminder');
+
+  // Create Note Form State
+  const [quickNoteTitle, setQuickNoteTitle] = useState('');
+  const [quickNoteColor, setQuickNoteColor] = useState('teal');
+
   const [promptValue, setPromptValue] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
   const [formInputs, setFormInputs] = useState<Record<string, Record<string, any>>>({});
   const [currentApp, setCurrentApp] = useState<any>(null);
+
+  // Load Real Dashboard data
+  useEffect(() => {
+    if (activePage !== 'dashboard') return;
+    
+    const loadData = () => {
+      try {
+        setIsDashboardLoading(true);
+        setDashboardError(null);
+
+        // 1. Calendar Tasks
+        const calendarSaved = localStorage.getItem('auraflow_calendar_tasks');
+        const calTasks = calendarSaved ? JSON.parse(calendarSaved) : [];
+        setRealCalendarTasks(calTasks);
+
+        // 2. Kanban Boards
+        const kanbanSaved = localStorage.getItem('auraflow_kanban_boards');
+        const kBoards = kanbanSaved ? JSON.parse(kanbanSaved) : [];
+        setRealKanbanBoards(kBoards);
+
+        // 3. Notes
+        const notesSaved = localStorage.getItem('auraflow_notes_v2');
+        const nList = notesSaved ? JSON.parse(notesSaved) : [];
+        setRealNotes(nList);
+
+        // 4. Whiteboards
+        const whiteboardsSaved = localStorage.getItem('auraflow_whiteboards_v1');
+        const wList = whiteboardsSaved ? JSON.parse(whiteboardsSaved) : [];
+        setRealWhiteboards(wList);
+
+        // 5. Chat History
+        const chatSaved = localStorage.getItem('auraflow_ai_chat_history');
+        const cHistory = chatSaved ? JSON.parse(chatSaved) : [];
+        setRealChatHistory(cHistory);
+
+        // 6. Generated Templates
+        const templatesSaved = localStorage.getItem(`auraflow_created_apps_${userId}`);
+        const tList = templatesSaved ? JSON.parse(templatesSaved) : [];
+        setRealTemplates(tList.length > 0 ? tList : createdApps);
+      } catch (e: any) {
+        console.error('Error loading dashboard data:', e);
+        setDashboardError('Failed to sync workspace databases.');
+      } finally {
+        setTimeout(() => {
+          setIsDashboardLoading(false);
+        }, 350); // Premium smooth skeleton feel
+      }
+    };
+
+    loadData();
+
+    const handleStorageChange = () => {
+      loadData();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+    };
+  }, [activePage, userId, createdApps]);
+
+  // Quick Action functions
+  const handleQuickCreateTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickTaskTitle.trim()) return;
+
+    try {
+      const saved = localStorage.getItem('auraflow_kanban_boards');
+      let boards = saved ? JSON.parse(saved) : [];
+
+      if (boards.length === 0) {
+        boards = [
+          {
+            id: 'board-1',
+            name: '🚀 Product Launch Sprint',
+            color: '#6366F1',
+            sharedEmails: [],
+            columns: [
+              { id: 'col-1', name: 'Todo', tasks: [] },
+              { id: 'col-2', name: 'In Progress', tasks: [] },
+              { id: 'col-3', name: 'Done', tasks: [] }
+            ]
+          }
+        ];
+      }
+
+      const boardId = quickTaskBoardId || boards[0].id;
+      const targetBoard = boards.find((b: any) => b.id === boardId) || boards[0];
+
+      const newTask = {
+        id: `t_${Date.now()}`,
+        title: quickTaskTitle.trim(),
+        description: quickTaskDesc.trim() || 'Quick created task from dashboard.',
+        dueDate: '2026-06-21',
+        priority: quickTaskPriority,
+        labels: ['General'],
+        syncCalendar: false,
+        syncNotes: false
+      };
+
+      if (!targetBoard.columns || targetBoard.columns.length === 0) {
+        targetBoard.columns = [{ id: `col-${Date.now()}-1`, name: 'Todo', tasks: [] }];
+      }
+
+      targetBoard.columns[0].tasks.push(newTask);
+      localStorage.setItem('auraflow_kanban_boards', JSON.stringify(boards));
+      window.dispatchEvent(new Event('storage'));
+
+      setQuickTaskTitle('');
+      setQuickTaskDesc('');
+      setQuickTaskBoardId('');
+      setQuickTaskPriority('Medium');
+      setActiveModal(null);
+    } catch (err) {
+      console.error('Failed to create task:', err);
+    }
+  };
+
+  const handleQuickCreateReminder = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickReminderTitle.trim()) return;
+
+    try {
+      const saved = localStorage.getItem('auraflow_calendar_tasks');
+      const tasks = saved ? JSON.parse(saved) : [];
+
+      const newCalItem = {
+        id: `cal-t-${Date.now()}`,
+        title: quickReminderTitle.trim(),
+        type: quickReminderType,
+        date: quickReminderDate,
+        time: quickReminderTime || undefined,
+        category: quickReminderCategory,
+        description: quickReminderDesc.trim() || undefined,
+        createdAt: Date.now()
+      };
+
+      const updated = [...tasks, newCalItem];
+      localStorage.setItem('auraflow_calendar_tasks', JSON.stringify(updated));
+      window.dispatchEvent(new Event('storage'));
+
+      setQuickReminderTitle('');
+      setQuickReminderDesc('');
+      setQuickReminderDate('2026-06-21');
+      setQuickReminderTime('');
+      setQuickReminderCategory('Work');
+      setQuickReminderType('reminder');
+      setActiveModal(null);
+    } catch (err) {
+      console.error('Failed to create calendar event:', err);
+    }
+  };
+
+  const handleQuickCreateNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickNoteTitle.trim()) return;
+
+    try {
+      const saved = localStorage.getItem('auraflow_notes_v2');
+      const notesList = saved ? JSON.parse(saved) : [];
+
+      const newNoteItem = {
+        id: `note-${Date.now()}`,
+        title: quickNoteTitle.trim(),
+        content: `<h1>${quickNoteTitle.trim()}</h1><p>Write some cozy thoughts...</p>`,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        isPinned: false,
+        isTrash: false,
+        color: quickNoteColor
+      };
+
+      const updated = [newNoteItem, ...notesList];
+      localStorage.setItem('auraflow_notes_v2', JSON.stringify(updated));
+      localStorage.setItem('auraflow_notes', JSON.stringify(updated));
+      window.dispatchEvent(new Event('storage'));
+
+      setQuickNoteTitle('');
+      setQuickNoteColor('teal');
+      setActiveModal(null);
+      
+      setActivePage('notes');
+    } catch (err) {
+      console.error('Failed to create note:', err);
+    }
+  };
+
+  const handleQuickCreateWhiteboard = () => {
+    try {
+      const saved = localStorage.getItem('auraflow_whiteboards_v1');
+      const whiteboardsList = saved ? JSON.parse(saved) : [];
+
+      const newBoardItem = {
+        id: `board-${Date.now()}`,
+        name: `🎨 Canvas Brainstorm ${whiteboardsList.length + 1}`,
+        updatedAt: Date.now(),
+        color: 'indigo',
+        elements: [],
+        appState: { viewBackgroundColor: '#ffffff' }
+      };
+
+      const updated = [newBoardItem, ...whiteboardsList];
+      localStorage.setItem('auraflow_whiteboards_v1', JSON.stringify(updated));
+      window.dispatchEvent(new Event('storage'));
+
+      setActivePage('whiteboard');
+    } catch (err) {
+      console.error('Failed to create whiteboard:', err);
+    }
+  };
 
   // Interactive customizer states
   const [isEditingHeader, setIsEditingHeader] = useState(false);
@@ -1846,130 +2087,972 @@ export default function DashboardContent({
 
     switch (activePage) {
       case 'dashboard':
+        // Calculate task metrics dynamically
+        let totalTasks = 0;
+        let completedTasks = 0;
+        let pendingTasks = 0;
+        let overdueTasks = 0;
+
+        realKanbanBoards.forEach((board: any) => {
+          board.columns?.forEach((column: any) => {
+            const isDoneColumn = column.name.toLowerCase().trim() === 'done';
+            column.tasks?.forEach((task: any) => {
+              totalTasks++;
+              if (isDoneColumn) {
+                completedTasks++;
+              } else {
+                pendingTasks++;
+                if (task.dueDate && task.dueDate < '2026-06-21') {
+                  overdueTasks++;
+                }
+              }
+            });
+          });
+        });
+
+        const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+        const formatActivityTime = (time: number) => {
+          const diff = Date.now() - time;
+          if (diff < 60000) return 'Just now';
+          const mins = Math.floor(diff / 60000);
+          if (mins < 60) return `${mins}m ago`;
+          const hours = Math.floor(mins / 60);
+          if (hours < 24) return `${hours}h ago`;
+          const days = Math.floor(hours / 24);
+          if (days === 1) return 'Yesterday';
+          return `${days}d ago`;
+        };
+
+        // Compile chronological activity logs
+        const compiledActivities = (() => {
+          const activities: any[] = [];
+
+          // Notes
+          realNotes.forEach((note: any) => {
+            activities.push({
+              type: 'note',
+              title: `Updated note "${note.title || 'Untitled Note'}"`,
+              preview: note.content ? note.content.replace(/<[^>]*>/g, ' ').substring(0, 60) + '...' : 'Draft copy editing.',
+              timestamp: note.updatedAt || note.createdAt || Date.now(),
+              icon: '📝',
+              colorClass: 'text-teal-500 bg-teal-500/10 border-teal-500/20'
+            });
+          });
+
+          // Whiteboards
+          realWhiteboards.forEach((board: any) => {
+            activities.push({
+              type: 'board',
+              title: `Modified whiteboard "${board.name || 'Untitled Board'}"`,
+              preview: `${board.elements?.length || 0} canvas elements drawing.`,
+              timestamp: board.updatedAt || Date.now(),
+              icon: '🎨',
+              colorClass: 'text-cyan-500 bg-cyan-500/10 border-cyan-500/20'
+            });
+          });
+
+          // Templates
+          realTemplates.forEach((app: any) => {
+            activities.push({
+              type: 'template',
+              title: `Generated AI template "${app.appName}"`,
+              preview: app.description || 'Custom template workspace app.',
+              timestamp: app.createdAt || Date.now(),
+              icon: '⚙️',
+              colorClass: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/20'
+            });
+          });
+
+          // Calendar
+          realCalendarTasks.forEach((task: any) => {
+            activities.push({
+              type: 'calendar',
+              title: `Added ${task.type}: "${task.title}"`,
+              preview: task.description || `${task.category} scheduled for ${task.date || 'draft'}.`,
+              timestamp: task.createdAt || Date.now(),
+              icon: task.type === 'reminder' ? '🔔' : '📅',
+              colorClass: 'text-amber-500 bg-amber-500/10 border-amber-500/20'
+            });
+          });
+
+          // Chat History
+          realChatHistory.forEach((msg: any) => {
+            if (msg.role === 'user') {
+              activities.push({
+                type: 'chat',
+                title: 'AI Command Executed',
+                preview: `Prompt: "${msg.text}"`,
+                timestamp: msg.timestamp || Date.now(),
+                icon: '✨',
+                colorClass: 'text-purple-500 bg-purple-500/10 border-purple-500/20'
+              });
+            }
+          });
+
+          // Kanban Tasks fallback mapping
+          realKanbanBoards.forEach((board: any) => {
+            board.columns?.forEach((col: any) => {
+              col.tasks?.forEach((task: any) => {
+                let ts = Date.now() - 3600000 * 20;
+                if (task.id.startsWith('t_')) {
+                  const num = parseInt(task.id.replace('t_', ''));
+                  if (!isNaN(num)) ts = num;
+                }
+                activities.push({
+                  type: 'task',
+                  title: `Created task "${task.title}"`,
+                  preview: `In "${col.name}" on board "${board.name}".`,
+                  timestamp: ts,
+                  icon: '✅',
+                  colorClass: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20'
+                });
+              });
+            });
+          });
+
+          return activities.sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
+        })();
+
+        // Filter upcoming tasks
+        const upcomingEvents = realCalendarTasks
+          .filter(t => t.date !== null && t.date >= '2026-06-21')
+          .sort((a, b) => {
+            const dateCompare = a.date!.localeCompare(b.date!);
+            if (dateCompare !== 0) return dateCompare;
+            return (a.time || '').localeCompare(b.time || '');
+          })
+          .slice(0, 4);
+
+        // Generate AI insights dynamically
+        const calculatedInsights = (() => {
+          const insights = [];
+
+          if (overdueTasks > 0) {
+            insights.push({
+              text: `You have ${overdueTasks} overdue tasks in Kanban.`,
+              suggestion: 'Suggested focus: Finish high-priority tasks first.',
+              color: 'border-l-4 border-l-red-500 bg-red-500/5 text-red-700 dark:text-red-300'
+            });
+          } else {
+            insights.push({
+              text: 'You have completed or rescheduled all past-due tasks.',
+              suggestion: 'Cozy work rate is operational!',
+              color: 'border-l-4 border-l-emerald-500 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300'
+            });
+          }
+
+          // Active Workspace
+          const counts = {
+            Notes: realNotes.length,
+            Whiteboard: realWhiteboards.length,
+            Tasks: totalTasks,
+            Calendar: realCalendarTasks.length
+          };
+          let activeName = 'Notes';
+          let activeVal = counts.Notes;
+          Object.entries(counts).forEach(([name, val]) => {
+            if (val > activeVal) {
+              activeVal = val;
+              activeName = name;
+            }
+          });
+          if (activeVal > 0) {
+            insights.push({
+              text: `Your most active workspace is ${activeName}.`,
+              suggestion: `Successfully managed ${activeVal} items inside it.`,
+              color: 'border-l-4 border-l-indigo-500 bg-indigo-500/5 text-indigo-700 dark:text-indigo-300'
+            });
+          }
+
+          // Task completion
+          if (totalTasks > 0) {
+            insights.push({
+              text: `You completed ${progressPercentage}% of tasks this week.`,
+              suggestion: progressPercentage >= 70 ? 'Excellent job! You are maintaining streaks.' : 'Split bigger tasks into smaller checkable milestones.',
+              color: 'border-l-4 border-l-amber-500 bg-amber-500/5 text-amber-700 dark:text-amber-300'
+            });
+          }
+
+          // Reminders density
+          const todayReminders = realCalendarTasks.filter(t => t.date === '2026-06-21');
+          if (todayReminders.length > 0) {
+            insights.push({
+              text: `You have ${todayReminders.length} upcoming reminder${todayReminders.length > 1 ? 's' : ''} today.`,
+              suggestion: 'Review slots to block focused intervals.',
+              color: 'border-l-4 border-l-pink-500 bg-pink-500/5 text-pink-700 dark:text-pink-300'
+            });
+          }
+
+          return insights;
+        })();
+
+        // Check if absolutely empty
+        const isWorkspaceEmpty = 
+          realCalendarTasks.length === 0 &&
+          realKanbanBoards.length === 0 &&
+          realNotes.length === 0 &&
+          realWhiteboards.length === 0 &&
+          realTemplates.length === 0;
+
+        if (dashboardError) {
+          return (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center min-h-[400px]">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-2xl max-w-md space-y-3">
+                <AlertTriangle size={32} className="mx-auto" />
+                <h3 className="font-bold text-sm">Database Sync Error</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{dashboardError}</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-semibold text-xs transition shadow-sm cursor-pointer"
+                >
+                  Reload Workspace
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        if (isDashboardLoading) {
+          return (
+            <div className="space-y-6 animate-pulse p-4">
+              <div className="h-10 w-48 bg-secondary/60 rounded-lg"></div>
+              <div className="h-4 w-72 bg-secondary/40 rounded-lg"></div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 mt-6">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-20 bg-secondary/50 rounded-xl border border-border/40"></div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                <div className="lg:col-span-2 space-y-6">
+                  <div className="h-48 bg-secondary/40 rounded-xl"></div>
+                  <div className="h-32 bg-secondary/40 rounded-xl"></div>
+                </div>
+                <div className="space-y-6">
+                  <div className="h-40 bg-secondary/40 rounded-xl"></div>
+                  <div className="h-48 bg-secondary/40 rounded-xl"></div>
+                </div>
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header row */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">Welcome back, Sarah 👋</h1>
-                <p className="text-xs text-muted-foreground mt-1">Here is a summary of your cozy workspace dashboard.</p>
+              <div className="text-left">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground flex items-center gap-2">
+                  Welcome back, Sarah 👋
+                </h1>
+                <p className="text-xs text-muted-foreground mt-1">Here is a live summary of your cozy workspace dashboard.</p>
               </div>
               <div className="flex gap-2.5">
-                <button className="px-3.5 py-1.5 rounded-lg border border-border/80 bg-card text-xs font-semibold text-foreground hover:bg-secondary cozy-transition shadow-sm cursor-pointer">
-                  Sync Devices
+                <button 
+                  onClick={() => {
+                    setIsDashboardLoading(true);
+                    setTimeout(() => setIsDashboardLoading(false), 300);
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg border border-border/80 bg-card text-xs font-semibold text-foreground hover:bg-secondary cozy-transition shadow-sm cursor-pointer"
+                >
+                  Refresh Feed
                 </button>
-                <button className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 cozy-transition cursor-pointer">
-                  <Plus size={14} /> New Space
+                <button 
+                  onClick={handleQuickCreateWhiteboard}
+                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-xs font-semibold text-white shadow-sm flex items-center gap-1.5 cozy-transition cursor-pointer"
+                >
+                  <Plus size={14} /> New Canvas
                 </button>
               </div>
             </div>
 
-            {/* Quick Metrics Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* App Functionality Status Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
               {[
-                { label: 'Active Spaces', value: '14', desc: '2 created this week', change: '+12%', changeColor: 'text-green-500', bg: 'border-l-4 border-l-emerald-400' },
-                { label: 'Whiteboard Sticky Cards', value: stickies.length.toString(), desc: 'Live Miro interactive canvas', change: 'Interactive', changeColor: 'text-sky-500', bg: 'border-l-4 border-l-cyan-400' },
-                { label: 'Task Checklist', value: `${kanbanTasks.filter(t => t.status === 'done').length}/${kanbanTasks.length}`, desc: 'Done / Total cards', change: 'Kanban linked', changeColor: 'text-indigo-500', bg: 'border-l-4 border-l-indigo-400' },
-                { label: 'AI Credits Used', value: '420', desc: '1,000 allowance remaining', change: 'Renew tomorrow', changeColor: 'text-amber-500', bg: 'border-l-4 border-l-rose-400' }
-              ].map((item, idx) => (
-                <div key={idx} className={`bg-card p-4 rounded-xl border border-border/70 cozy-shadow flex flex-col justify-between ${item.bg}`}>
-                  <div>
-                    <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{item.label}</span>
-                    <span className="text-2xl font-bold text-foreground block mt-1">{item.value}</span>
+                { 
+                  name: 'Calendar', 
+                  icon: CalIcon, 
+                  status: 'Active', 
+                  stats: `${realCalendarTasks.length} Events`, 
+                  color: 'border-l-lindigo border-l-4 border-l-indigo-400',
+                  action: () => setActivePage('calendar')
+                },
+                { 
+                  name: 'Kanban / Tasks', 
+                  icon: KanbanIcon, 
+                  status: 'Active', 
+                  stats: `${totalTasks} Tasks (${realKanbanBoards.length} Boards)`, 
+                  color: 'border-l-emerald border-l-4 border-l-emerald-400',
+                  action: () => setActivePage('tasks')
+                },
+                { 
+                  name: 'Notes', 
+                  icon: FileText, 
+                  status: 'Active', 
+                  stats: `${realNotes.length} Sheets (${realNotes.filter(n => n.isPinned).length} Pinned)`, 
+                  color: 'border-l-cyan border-l-4 border-l-cyan-400',
+                  action: () => setActivePage('notes')
+                },
+                { 
+                  name: 'Whiteboard', 
+                  icon: Presentation, 
+                  status: 'Active', 
+                  stats: `${realWhiteboards.length} Boards`, 
+                  color: 'border-l-rose border-l-4 border-l-rose-400',
+                  action: () => setActivePage('whiteboard')
+                },
+                { 
+                  name: 'AI Assistant', 
+                  icon: Sparkles, 
+                  status: 'Ready', 
+                  stats: `${realChatHistory.length} Interactions`, 
+                  color: 'border-l-purple border-l-4 border-l-purple-400',
+                  action: () => setActivePage('ai-assistant')
+                },
+                { 
+                  name: 'AI Template Builder', 
+                  icon: Cpu, 
+                  status: 'Operational', 
+                  stats: `${realTemplates.length} Custom apps`, 
+                  color: 'border-l-amber border-l-4 border-l-amber-400',
+                  action: () => setActivePage('template-builder')
+                }
+              ].map((card, idx) => {
+                const Icon = card.icon;
+                return (
+                  <div 
+                    key={idx} 
+                    onClick={card.action}
+                    className={`bg-card p-4 rounded-xl border border-border/70 cozy-shadow flex flex-col justify-between cursor-pointer hover:border-foreground/30 hover:-translate-y-0.5 transition-all duration-200 text-left ${card.color}`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="p-1.5 bg-secondary/50 rounded-lg text-foreground/80">
+                        <Icon size={16} />
+                      </div>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-sans tracking-wide uppercase select-none">
+                        {card.status}
+                      </span>
+                    </div>
+                    <div className="mt-3">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block leading-none">{card.name}</span>
+                      <span className="text-xs font-bold text-foreground block mt-1.5 truncate">{card.stats}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between mt-3 text-[10px] text-muted-foreground border-t border-border/40 pt-2">
-                    <span>{item.desc}</span>
-                    <span className={`font-semibold ${item.changeColor}`}>{item.change}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Row Layout: Tasks / Quick Notes + AI Assistant Mini Panel */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              
-              {/* Left Column: Recent Activities & Tasks */}
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow space-y-4">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-3">
-                    <h3 className="font-semibold text-sm flex items-center gap-2">
-                      <Activity size={15} className="text-emerald-500" /> Recent Activities
-                    </h3>
-                    <span className="text-[10px] bg-secondary/80 text-muted-foreground px-2 py-0.5 rounded font-medium">Auto-saved</span>
-                  </div>
-                  
-                  <div className="space-y-3.5">
-                    {[
-                      { type: 'note', title: 'AuraFlow Launch Strategy', time: '10 mins ago', author: 'Sarah Jenkins', preview: 'Added outline for initial Cozy & Fresh visual launch.' },
-                      { type: 'board', title: 'Product Integration Canvas', time: '1 hour ago', author: 'Sarah Jenkins', preview: 'Placed 3 sticky notes regarding Clerk setup details.' },
-                      { type: 'task', title: 'Task Completed: Set up Clerk auth middleware', time: 'Yesterday', author: 'System Agent', preview: 'Drizzle schemas pushed and validated.' }
-                    ].map((act, actIdx) => (
-                      <div key={actIdx} className="flex gap-3 text-xs border-b border-border/30 last:border-0 pb-3 last:pb-0">
-                        <div className="w-8 h-8 rounded-lg bg-secondary/50 flex items-center justify-center flex-shrink-0 text-lg">
-                          {act.type === 'note' ? '📝' : act.type === 'board' ? '🎨' : '✅'}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-foreground truncate">{act.title}</span>
-                            <span className="text-[9px] text-muted-foreground whitespace-nowrap">{act.time}</span>
-                          </div>
-                          <p className="text-muted-foreground text-[11px] mt-0.5 truncate">{act.preview}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Cozy Productivity Quote Widget */}
-                <div className="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-zinc-900/60 dark:to-orange-950/20 p-5 rounded-xl border border-amber-200/50 dark:border-amber-900/30 flex items-center gap-4">
-                  <div className="text-2xl">💡</div>
-                  <div>
-                    <h4 className="text-xs font-bold text-amber-800 dark:text-amber-400">Cozy Fresh Insight</h4>
-                    <p className="text-xs text-amber-700/80 dark:text-amber-300/80 mt-1 italic">
-                      "Good workflow design is like a well-organized desk. It doesn't restrict you; it gives you the mental clarity to create freely."
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Right Column: Mini AI Assistant Widget */}
-              <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow flex flex-col justify-between h-[360px]">
-                <div className="space-y-3.5 flex-1 overflow-hidden flex flex-col">
-                  <div className="flex items-center justify-between border-b border-border/50 pb-3">
-                    <h3 className="font-semibold text-sm flex items-center gap-2">
-                      <Sparkles size={15} className="text-orange-400 animate-pulse" /> Spark AI Agent
-                    </h3>
-                    <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
-                    <div className="p-2.5 rounded-xl bg-secondary/40 text-muted-foreground leading-relaxed">
-                      Hey Sarah! I can see you have 2 pending tasks. Would you like me to draft an initial plan for "AI template models"?
-                    </div>
-                    <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-400/15 text-right font-medium ml-8">
-                      Sure, make it a concise cozy template.
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-border/50 flex gap-2">
-                  <input 
-                    type="text" 
-                    placeholder="Ask Spark AI..." 
-                    className="flex-1 px-3 py-1.5 rounded-lg border border-border/80 bg-secondary/30 text-xs focus:outline-none focus:ring-1 focus:ring-primary cozy-transition text-foreground"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        // redirect to AI screen
-                        alert("Navigating to AI screen to fulfill query!");
-                      }
-                    }}
-                  />
-                  <button className="p-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 cozy-transition cursor-pointer">
-                    <ArrowRight size={14} />
+            {/* If workspace is totally empty */}
+            {isWorkspaceEmpty && (
+              <div className="bg-card p-10 rounded-2xl border border-dashed border-border/75 text-center max-w-xl mx-auto space-y-3">
+                <span className="text-4xl block">✨</span>
+                <h3 className="font-bold text-sm text-foreground">Welcome to AuraFlow Productivity!</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Your dashboard currently has no active data. Use the Quick Access panel or sidebar menus to draft your first task, schedule a reminder, or spin up a whiteboard.
+                </p>
+                <div className="flex gap-2.5 justify-center pt-2">
+                  <button 
+                    onClick={() => setActiveModal('task')} 
+                    className="px-3.5 py-1.5 rounded-lg bg-indigo-500 hover:bg-indigo-600 text-white font-semibold text-xs"
+                  >
+                    Create Task
+                  </button>
+                  <button 
+                    onClick={() => setActiveModal('note')} 
+                    className="px-3.5 py-1.5 rounded-lg bg-teal-500 hover:bg-teal-600 text-white font-semibold text-xs"
+                  >
+                    Write Note
                   </button>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* Row Layout */}
+            {!isWorkspaceEmpty && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left Columns (Tasks, Calendar, Activity, Pages) */}
+                <div className="lg:col-span-2 space-y-6">
+                  
+                  {/* Task Summary & Progress Chart */}
+                  <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow text-left space-y-4">
+                    <h3 className="font-bold text-sm flex items-center gap-2 border-b border-border/40 pb-2">
+                      <CheckCircle2 size={15} className="text-indigo-500" /> Task Summary & Progress
+                    </h3>
+                    <div className="flex flex-col sm:flex-row items-center justify-around gap-4 p-3 bg-secondary/10 rounded-xl border border-border/40">
+                      <div className="relative w-28 h-28 flex items-center justify-center flex-shrink-0">
+                        <svg className="w-full h-full transform -rotate-90" viewBox="0 0 80 80">
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="30"
+                            className="stroke-secondary/40"
+                            strokeWidth="6.5"
+                            fill="transparent"
+                          />
+                          <circle
+                            cx="40"
+                            cy="40"
+                            r="30"
+                            className="stroke-indigo-500 transition-all duration-500 ease-out dark:stroke-indigo-400"
+                            strokeWidth="6.5"
+                            fill="transparent"
+                            strokeDasharray="188.4"
+                            strokeDashoffset={188.4 - (188.4 * progressPercentage) / 100}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <div className="absolute text-center">
+                          <span className="text-xl font-bold text-foreground block">{progressPercentage}%</span>
+                          <span className="text-[9px] text-muted-foreground uppercase font-semibold">Done</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex-1 space-y-2 text-xs w-full">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex justify-between items-center bg-card p-2.5 rounded-xl border border-border/40">
+                            <span className="text-muted-foreground flex items-center gap-1.5 truncate">
+                              <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 flex-shrink-0" /> Total Tasks
+                            </span>
+                            <span className="font-bold text-foreground">{totalTasks}</span>
+                          </div>
+                          <div className="flex justify-between items-center bg-card p-2.5 rounded-xl border border-border/40">
+                            <span className="text-muted-foreground flex items-center gap-1.5 truncate">
+                              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 flex-shrink-0" /> Completed
+                            </span>
+                            <span className="font-bold text-foreground">{completedTasks}</span>
+                          </div>
+                          <div className="flex justify-between items-center bg-card p-2.5 rounded-xl border border-border/40">
+                            <span className="text-muted-foreground flex items-center gap-1.5 truncate">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 flex-shrink-0" /> Pending
+                            </span>
+                            <span className="font-bold text-foreground">{pendingTasks}</span>
+                          </div>
+                          <div className="flex justify-between items-center bg-card p-2.5 rounded-xl border border-border/40">
+                            <span className="text-muted-foreground flex items-center gap-1.5 truncate">
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500 flex-shrink-0" /> Overdue
+                            </span>
+                            <span className="font-bold text-red-500">{overdueTasks}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Upcoming Calendar Tasks / Reminders */}
+                  <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow text-left space-y-4">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                      <h3 className="font-bold text-sm flex items-center gap-2">
+                        <CalIcon size={15} className="text-amber-500" /> Upcoming Reminders & Events
+                      </h3>
+                      <button 
+                        onClick={() => setActivePage('calendar')}
+                        className="text-[10px] text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300 font-bold hover:underline cursor-pointer"
+                      >
+                        View Calendar &rarr;
+                      </button>
+                    </div>
+
+                    <div className="space-y-2">
+                      {upcomingEvents.map(evt => {
+                        const isTask = evt.type === 'task';
+                        return (
+                          <div 
+                            key={evt.id} 
+                            className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-foreground/20 cozy-transition flex items-center justify-between gap-3 text-xs"
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="w-8 h-8 rounded-lg bg-card border border-border/40 flex items-center justify-center text-base flex-shrink-0">
+                                {isTask ? '📅' : '🔔'}
+                              </div>
+                              <div className="min-w-0 text-left">
+                                <span className="font-semibold text-foreground truncate block">{evt.title}</span>
+                                <span className="text-[9.5px] text-muted-foreground mt-0.5 block font-mono">
+                                  {evt.date} {evt.time ? `@ ${evt.time}` : ''}
+                                </span>
+                              </div>
+                            </div>
+                            <span className={`px-2.5 py-0.5 rounded font-extrabold text-[8.5px] uppercase tracking-wider border ${
+                              evt.category === 'Urgent'
+                                ? 'bg-red-500/10 border-red-500/20 text-red-500'
+                                : evt.category === 'Work'
+                                  ? 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500'
+                                  : evt.category === 'Meeting'
+                                    ? 'bg-rose-500/10 border-rose-500/20 text-rose-500'
+                                    : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                            }`}>
+                              {evt.category}
+                            </span>
+                          </div>
+                        );
+                      })}
+                      {upcomingEvents.length === 0 && (
+                        <p className="text-xs text-muted-foreground italic py-3">No upcoming events or reminders scheduled.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Dynamic Recent Activity Feed */}
+                  <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow text-left space-y-4">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-2">
+                      <h3 className="font-bold text-sm flex items-center gap-2">
+                        <Activity size={15} className="text-emerald-500" /> Recent Activities
+                      </h3>
+                      <span className="text-[10px] bg-secondary/80 text-muted-foreground px-2 py-0.5 rounded font-medium select-none">
+                        Real Time Feed
+                      </span>
+                    </div>
+                    
+                    <div className="space-y-3.5">
+                      {compiledActivities.map((act, idx) => (
+                        <div key={idx} className="flex gap-3 text-xs border-b border-border/30 last:border-0 pb-3.5 last:pb-0">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-base border ${act.colorClass}`}>
+                            {act.icon}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-foreground truncate">{act.title}</span>
+                              <span className="text-[9px] text-muted-foreground font-semibold whitespace-nowrap">{formatActivityTime(act.timestamp)}</span>
+                            </div>
+                            <p className="text-muted-foreground text-[10.5px] mt-0.5 truncate">{act.preview}</p>
+                          </div>
+                        </div>
+                      ))}
+                      {compiledActivities.length === 0 && (
+                        <p className="text-xs text-muted-foreground italic py-3">No recent activities logged in this space yet.</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Recent Pages Section */}
+                  <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow text-left space-y-4">
+                    <h3 className="font-bold text-sm flex items-center gap-2 border-b border-border/40 pb-2">
+                      <FolderOpen size={15} className="text-cyan-500" /> Recent Pages & Canvas Spaces
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      {/* Recent Notes */}
+                      <div className="space-y-2 text-left bg-secondary/10 p-3.5 rounded-xl border border-border/40">
+                        <h4 className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">Notebook Sheets</h4>
+                        <div className="space-y-1.5">
+                          {realNotes.slice(0, 3).map(n => (
+                            <div 
+                              key={n.id} 
+                              onClick={() => {
+                                // Sync notes selection in storage is unnecessary since notes loads notesList
+                                setActivePage('notes');
+                              }}
+                              className="p-2 bg-card rounded-lg border border-border/40 hover:border-teal-500/40 cozy-transition cursor-pointer flex items-center gap-2"
+                            >
+                              <span className="text-base flex-shrink-0">📝</span>
+                              <span className="font-semibold text-foreground truncate flex-1">{n.title}</span>
+                              <ChevronRight size={10} className="text-muted-foreground" />
+                            </div>
+                          ))}
+                          {realNotes.length === 0 && (
+                            <p className="text-[10px] text-muted-foreground italic">No sheets drafted.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Recent Whiteboards */}
+                      <div className="space-y-2 text-left bg-secondary/10 p-3.5 rounded-xl border border-border/40">
+                        <h4 className="font-bold text-[10px] text-muted-foreground uppercase tracking-wider block">Drawing Canvases</h4>
+                        <div className="space-y-1.5">
+                          {realWhiteboards.slice(0, 3).map(w => (
+                            <div 
+                              key={w.id} 
+                              onClick={() => {
+                                setActivePage('whiteboard');
+                              }}
+                              className="p-2 bg-card rounded-lg border border-border/40 hover:border-cyan-500/40 cozy-transition cursor-pointer flex items-center gap-2"
+                            >
+                              <span className="text-base flex-shrink-0">🎨</span>
+                              <span className="font-semibold text-foreground truncate flex-1">{w.name}</span>
+                              <ChevronRight size={10} className="text-muted-foreground" />
+                            </div>
+                          ))}
+                          {realWhiteboards.length === 0 && (
+                            <p className="text-[10px] text-muted-foreground italic">No whiteboard drawings.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right Column (Quick Actions, AI Insights) */}
+                <div className="space-y-6">
+                  
+                  {/* Quick Access Features Panel */}
+                  <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow text-left space-y-4">
+                    <h3 className="font-bold text-sm flex items-center gap-2 border-b border-border/40 pb-2">
+                      <Plus size={15} className="text-indigo-500 animate-pulse" /> Quick Access Actions
+                    </h3>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <button 
+                        onClick={() => setActiveModal('task')}
+                        className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-indigo-500 hover:bg-indigo-500/5 transition duration-150 font-semibold text-foreground text-left flex flex-col justify-between gap-3"
+                      >
+                        <span className="text-base">📋</span>
+                        <div>
+                          <span className="font-bold block">Create Task</span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5 block">Add to Kanban</span>
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActiveModal('reminder')}
+                        className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-amber-500 hover:bg-amber-500/5 transition duration-150 font-semibold text-foreground text-left flex flex-col justify-between gap-3"
+                      >
+                        <span className="text-base">📅</span>
+                        <div>
+                          <span className="font-bold block">Add Reminder</span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5 block">Schedule Calendar</span>
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActiveModal('note')}
+                        className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-teal-500 hover:bg-teal-500/5 transition duration-150 font-semibold text-foreground text-left flex flex-col justify-between gap-3"
+                      >
+                        <span className="text-base">📝</span>
+                        <div>
+                          <span className="font-bold block">Create Note</span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5 block">Draft new sheet</span>
+                        </div>
+                      </button>
+                      <button 
+                        onClick={handleQuickCreateWhiteboard}
+                        className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-cyan-500 hover:bg-cyan-500/5 transition duration-150 font-semibold text-foreground text-left flex flex-col justify-between gap-3"
+                      >
+                        <span className="text-base">🎨</span>
+                        <div>
+                          <span className="font-bold block">Open Canvas</span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5 block">Start whiteboard</span>
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActivePage('ai-assistant')}
+                        className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-purple-500 hover:bg-purple-500/5 transition duration-150 font-semibold text-foreground text-left flex flex-col justify-between gap-3 col-span-2"
+                      >
+                        <span className="text-base flex items-center gap-1">✨ <span className="text-[9px] font-bold text-purple-600 bg-purple-500/10 px-1 rounded uppercase tracking-wider">Online</span></span>
+                        <div>
+                          <span className="font-bold block">Ask Spark AI Assistant</span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5 block">Voice & text natural command agent</span>
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setActivePage('template-builder')}
+                        className="p-3 bg-secondary/15 rounded-xl border border-border/40 hover:border-amber-500 hover:bg-amber-500/5 transition duration-150 font-semibold text-foreground text-left flex flex-col justify-between gap-3 col-span-2"
+                      >
+                        <span className="text-base">⚙️</span>
+                        <div>
+                          <span className="font-bold block">Generate Custom AI Template</span>
+                          <span className="text-[9px] text-muted-foreground mt-0.5 block">Create single page stateful dashboards</span>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cozy AI Insights section */}
+                  <div className="bg-card p-5 rounded-xl border border-border/70 cozy-shadow text-left space-y-4">
+                    <h3 className="font-bold text-sm flex items-center gap-2 border-b border-border/40 pb-2">
+                      <Sparkles size={15} className="text-purple-500 animate-pulse" /> Spark AI Insights
+                    </h3>
+                    
+                    <div className="space-y-3">
+                      {calculatedInsights.map((ins, idx) => (
+                        <div key={idx} className={`p-3 rounded-xl border text-xs text-left ${ins.color}`}>
+                          <span className="font-bold block">{ins.text}</span>
+                          <span className="text-[10px] text-muted-foreground mt-1 block italic">{ins.suggestion}</span>
+                        </div>
+                      ))}
+                      {calculatedInsights.length === 0 && (
+                        <p className="text-xs text-muted-foreground italic py-2">Calculating suggestions... Load more tasks to refine.</p>
+                      )}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* QUICK ACTIONS MODALS OVERLAYS */}
+            {activeModal === 'task' && (
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+                <div className="bg-card w-full max-w-[420px] p-6 rounded-2xl border border-border/60 cozy-shadow flex flex-col gap-4 animate-in zoom-in-95 duration-200 text-left">
+                  <div className="flex justify-between items-center border-b border-border/50 pb-3">
+                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <KanbanIcon size={14} className="text-indigo-500" />
+                      Quick Create Kanban Task
+                    </h3>
+                    <button 
+                      onClick={() => setActiveModal(null)}
+                      className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleQuickCreateTask} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-muted-foreground uppercase tracking-wider block">Task Title</label>
+                      <input 
+                        type="text" 
+                        value={quickTaskTitle}
+                        onChange={(e) => setQuickTaskTitle(e.target.value)}
+                        placeholder="e.g. Design responsive layout..."
+                        className="w-full px-3 py-2 border border-border/80 bg-secondary/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-semibold"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-muted-foreground uppercase tracking-wider block">Description</label>
+                      <textarea 
+                        value={quickTaskDesc}
+                        onChange={(e) => setQuickTaskDesc(e.target.value)}
+                        placeholder="Enter details..."
+                        className="w-full min-h-[70px] p-2.5 border border-border/80 bg-secondary/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-foreground resize-none"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-muted-foreground uppercase tracking-wider block">Target Board</label>
+                        <select
+                          value={quickTaskBoardId}
+                          onChange={(e) => setQuickTaskBoardId(e.target.value)}
+                          className="w-full px-2.5 py-2 border border-border bg-card rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          {realKanbanBoards.length === 0 ? (
+                            <option value="">Default Sprint Board</option>
+                          ) : (
+                            realKanbanBoards.map(b => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))
+                          )}
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-muted-foreground uppercase tracking-wider block">Priority</label>
+                        <select
+                          value={quickTaskPriority}
+                          onChange={(e) => setQuickTaskPriority(e.target.value as any)}
+                          className="w-full px-2.5 py-2 border border-border bg-card rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => setActiveModal(null)}
+                        className="px-3.5 py-2 border border-border bg-card rounded-xl font-semibold text-muted-foreground hover:bg-secondary cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3.5 py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                      >
+                        Create Task
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {activeModal === 'note' && (
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+                <div className="bg-card w-full max-w-[420px] p-6 rounded-2xl border border-border/60 cozy-shadow flex flex-col gap-4 animate-in zoom-in-95 duration-200 text-left">
+                  <div className="flex justify-between items-center border-b border-border/50 pb-3">
+                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <FileText size={14} className="text-teal-500" />
+                      Quick Create Note
+                    </h3>
+                    <button 
+                      onClick={() => setActiveModal(null)}
+                      className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleQuickCreateNote} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-muted-foreground uppercase tracking-wider block">Note Title</label>
+                      <input 
+                        type="text" 
+                        value={quickNoteTitle}
+                        onChange={(e) => setQuickNoteTitle(e.target.value)}
+                        placeholder="e.g. Brainstorming session..."
+                        className="w-full px-3 py-2 border border-border/80 bg-secondary/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-semibold"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-muted-foreground uppercase tracking-wider block">Folder Color Theme</label>
+                      <div className="grid grid-cols-6 gap-2">
+                        {[
+                          { id: 'teal', hex: '#0D9488' },
+                          { id: 'sage', hex: '#10B981' },
+                          { id: 'peach', hex: '#FF6B5A' },
+                          { id: 'oat', hex: '#D97706' },
+                          { id: 'cyan', hex: '#06B6D4' },
+                          { id: 'violet', hex: '#8B5CF6' }
+                        ].map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => setQuickNoteColor(c.id)}
+                            className={`h-8 rounded-lg border flex items-center justify-center cursor-pointer transition-all ${
+                              quickNoteColor === c.id ? 'ring-2 ring-indigo-500 scale-105 border-transparent' : 'border-black/5 hover:scale-105'
+                            }`}
+                            style={{ backgroundColor: c.hex }}
+                          >
+                            {quickNoteColor === c.id && <Check size={14} className="text-white drop-shadow" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => setActiveModal(null)}
+                        className="px-3.5 py-2 border border-border bg-card rounded-xl font-semibold text-muted-foreground hover:bg-secondary cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3.5 py-2 bg-teal-500 hover:bg-teal-600 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                      >
+                        Create Note
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
+            {activeModal === 'reminder' && (
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in duration-200">
+                <div className="bg-card w-full max-w-[420px] p-6 rounded-2xl border border-border/60 cozy-shadow flex flex-col gap-4 animate-in zoom-in-95 duration-200 text-left">
+                  <div className="flex justify-between items-center border-b border-border/50 pb-3">
+                    <h3 className="font-bold text-sm text-foreground flex items-center gap-2">
+                      <CalIcon size={14} className="text-amber-500" />
+                      Schedule Event / Reminder
+                    </h3>
+                    <button 
+                      onClick={() => setActiveModal(null)}
+                      className="p-1 rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground cursor-pointer"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                  
+                  <form onSubmit={handleQuickCreateReminder} className="space-y-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-muted-foreground uppercase tracking-wider block">Title</label>
+                      <input 
+                        type="text" 
+                        value={quickReminderTitle}
+                        onChange={(e) => setQuickReminderTitle(e.target.value)}
+                        placeholder="e.g. Sync with team..."
+                        className="w-full px-3 py-2 border border-border/80 bg-secondary/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-foreground font-semibold"
+                        required
+                        autoFocus
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-muted-foreground uppercase tracking-wider block">Type</label>
+                        <select
+                          value={quickReminderType}
+                          onChange={(e) => setQuickReminderType(e.target.value as any)}
+                          className="w-full px-2.5 py-2 border border-border bg-card rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="reminder">Reminder 🔔</option>
+                          <option value="task">Task 📅</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-muted-foreground uppercase tracking-wider block">Category</label>
+                        <select
+                          value={quickReminderCategory}
+                          onChange={(e) => setQuickReminderCategory(e.target.value as any)}
+                          className="w-full px-2.5 py-2 border border-border bg-card rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="Work">Work 💼</option>
+                          <option value="Personal">Personal 👤</option>
+                          <option value="Meeting">Meeting 🤝</option>
+                          <option value="Health">Health 🌿</option>
+                          <option value="Urgent">Urgent 🚨</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-muted-foreground uppercase tracking-wider block">Date</label>
+                        <input 
+                          type="date"
+                          value={quickReminderDate}
+                          onChange={(e) => setQuickReminderDate(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-border bg-card rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-muted-foreground uppercase tracking-wider block">Time (Optional)</label>
+                        <input 
+                          type="time"
+                          value={quickReminderTime}
+                          onChange={(e) => setQuickReminderTime(e.target.value)}
+                          className="w-full px-2.5 py-1.5 border border-border bg-card rounded-xl text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-bold text-muted-foreground uppercase tracking-wider block">Description</label>
+                      <textarea 
+                        value={quickReminderDesc}
+                        onChange={(e) => setQuickReminderDesc(e.target.value)}
+                        placeholder="Enter details..."
+                        className="w-full min-h-[60px] p-2.5 border border-border/80 bg-secondary/10 rounded-xl focus:outline-none focus:ring-1 focus:ring-primary text-foreground resize-none"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-3 border-t border-border/50">
+                      <button
+                        type="button"
+                        onClick={() => setActiveModal(null)}
+                        className="px-3.5 py-2 border border-border bg-card rounded-xl font-semibold text-muted-foreground hover:bg-secondary cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="px-3.5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-semibold shadow-sm cursor-pointer"
+                      >
+                        Schedule Event
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+
           </div>
         );
 

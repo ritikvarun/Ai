@@ -13,5 +13,5 @@ export default async function SyncUserPage() {
   }
 
   await syncClerkUserToDatabase(user);
-  redirect("/");
+  redirect("/workspace");
 }

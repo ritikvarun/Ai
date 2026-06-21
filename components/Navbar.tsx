@@ -6,11 +6,11 @@ import {
   Moon, 
   Search, 
   Share2, 
-  Users, 
   Bell, 
   Sparkles,
   Command
 } from 'lucide-react';
+import { useAppUser } from '@/lib/auth-context';
 
 interface NavbarProps {
   isDark: boolean;
@@ -46,6 +46,9 @@ export default function Navbar({ isDark, setIsDark, activePage }: NavbarProps) {
   };
 
   const { title, subtitle } = getPageTitle(activePage);
+  const { user } = useAppUser();
+  const displayName = user?.fullName || user?.firstName || 'User';
+  const displayAvatar = user?.imageUrl || '';
 
   return (
     <header 
@@ -82,12 +85,10 @@ export default function Navbar({ isDark, setIsDark, activePage }: NavbarProps) {
 
       {/* Right Section: Actions & Theme Switcher */}
       <div className="flex items-center gap-3">
-        {/* Collaboration widgets */}
-        <div className="flex items-center -space-x-1.5 mr-2">
-          <div className="w-6 h-6 rounded-full border border-card bg-emerald-500 text-[9px] font-bold text-white flex items-center justify-center cursor-help" title="Alice is editing">A</div>
-          <div className="w-6 h-6 rounded-full border border-card bg-indigo-500 text-[9px] font-bold text-white flex items-center justify-center cursor-help" title="Bob is viewing">B</div>
-          <div className="w-6 h-6 rounded-full border border-card bg-amber-500 text-[9px] font-bold text-white flex items-center justify-center cursor-help" title="Charlie is commenting">C</div>
-          <span className="text-[9px] font-semibold text-muted-foreground pl-2">+3 online</span>
+        {/* Collaboration widgets — subtle online indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 mr-2">
+          <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+          <span className="text-[10px] font-semibold text-muted-foreground">Online</span>
         </div>
 
         {/* Share Button */}
@@ -128,6 +129,19 @@ export default function Navbar({ isDark, setIsDark, activePage }: NavbarProps) {
             )}
           </div>
         </button>
+
+        {/* Real User Avatar */}
+        <div className="flex items-center gap-2 pl-1">
+          <div className="w-7 h-7 rounded-full border-2 border-border overflow-hidden flex-shrink-0 bg-secondary">
+            {displayAvatar ? (
+              <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-[11px] font-bold text-foreground">
+                {displayName.charAt(0).toUpperCase()}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </header>
   );

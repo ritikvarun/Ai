@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useClerk } from '@clerk/nextjs';
 import { 
   LayoutDashboard, 
   Sparkles, 
@@ -28,7 +29,8 @@ import {
   Trophy,
   Shield,
   Layers,
-  ListTodo
+  ListTodo,
+  LogOut
 } from 'lucide-react';
 import { useAppUser } from '@/lib/auth-context';
 
@@ -86,7 +88,12 @@ export default function Sidebar({
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { user } = useAppUser();
+  const { signOut } = useClerk();
   const userId = user?.id || 'guest';
+
+  const displayName = user?.fullName || user?.firstName || user?.username || 'User';
+  const displayEmail = user?.emailAddresses?.[0]?.emailAddress || '';
+  const displayAvatar = user?.imageUrl || '';
 
   const handleRemoveFromSidebar = (appId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -358,21 +365,34 @@ export default function Sidebar({
           )}
         </div>
 
-        {/* User profile card */}
-        <div className={`flex items-center gap-2.5 p-1 rounded-xl border border-transparent cozy-transition ${isCollapsed ? 'justify-center' : 'hover:bg-card/40 hover:border-border/30'}`}>
+        {/* User profile card + Logout */}
+        <div className={`flex items-center gap-2.5 p-1 rounded-xl border border-transparent cozy-transition ${isCollapsed ? 'justify-center flex-col' : 'hover:bg-card/40 hover:border-border/30'}`}>
           <div className="relative flex-shrink-0">
             <div className="w-8 h-8 rounded-full bg-orange-100 dark:bg-zinc-800 flex items-center justify-center border border-border text-foreground overflow-hidden">
-              <User size={15} className="text-muted-foreground" />
+              {displayAvatar ? (
+                <img src={displayAvatar} alt={displayName} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                <User size={15} className="text-muted-foreground" />
+              )}
             </div>
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white dark:border-zinc-900 rounded-full"></span>
           </div>
 
           {!isCollapsed && (
             <div className="flex-1 min-w-0 flex flex-col text-left">
-              <span className="text-xs font-semibold truncate text-foreground leading-tight">Sarah Jenkins</span>
-              <span className="text-[9px] text-muted-foreground truncate">sarah@auraflow.io</span>
+              <span className="text-xs font-semibold truncate text-foreground leading-tight">{displayName}</span>
+              <span className="text-[9px] text-muted-foreground truncate">{displayEmail}</span>
             </div>
           )}
+
+          {/* Logout button */}
+          <button
+            onClick={() => signOut({ redirectUrl: '/sign-in' })}
+            title="Sign out"
+            className="p-1.5 rounded-lg hover:bg-red-500/10 hover:text-red-500 text-muted-foreground cozy-transition cursor-pointer flex-shrink-0"
+          >
+            <LogOut size={13} />
+          </button>
         </div>
       </div>
     </aside>
